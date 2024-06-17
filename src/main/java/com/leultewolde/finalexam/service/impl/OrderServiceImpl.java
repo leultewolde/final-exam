@@ -10,6 +10,7 @@ import com.leultewolde.finalexam.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,14 +39,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Optional<OrderResponseDTO> getOrderByCustomerID(Long customerID) {
-        Optional<Order> optionalFoundOrder = orderRepository.findOrdersByCustomer_CustomerId(customerID);
-        if (optionalFoundOrder.isPresent()) {
-            Order foundOrder = optionalFoundOrder.get();
-            OrderResponseDTO responseDTO = modelMapper.map(foundOrder, OrderResponseDTO.class);
-            responseDTO.setProducts(foundOrder.getProducts().stream().map(product -> modelMapper.map(product, ProductResponseDTO.class)).toList());
-            return Optional.of(responseDTO);
-        }
-        return Optional.empty();
+    public Page<OrderResponseDTO> getOrdersByCustomerID(Long customerID, int pageNo, int pageSize, String direction, String sortBy) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.Direction.fromString(direction), sortBy);
+        Page<Order> orderPage = orderRepository.findOrdersByCustomer_CustomerId(customerID, pageable);
+        List<OrderResponseDTO> responseDTOS = orderPage.get().map(order -> {
+            OrderResponseDTO responseDTO = modelMapper.map(order, OrderResponseDTO.class);
+            responseDTO.setProducts(order.getProducts().stream().map(product -> modelMapper.map(product, ProductResponseDTO.class)).toList());
+            return responseDTO;
+        }).toList();
+
+        return new PageImpl<>(responseDTOS, pageable, orderPage.getTotalElements());
     }
+
 }
